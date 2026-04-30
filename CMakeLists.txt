@@ -1,12 +1,16 @@
+cmake_minimum_required(VERSION 3.10)
 project(ETH3DMultiViewEvaluation)
-cmake_minimum_required(VERSION 2.8)
 
 set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
 # External dependency: boost filesystem
-find_package(Boost COMPONENTS filesystem system REQUIRED)
+if(POLICY CMP0167)
+  cmake_policy(SET CMP0167 NEW)
+endif()
+find_package(Boost REQUIRED COMPONENTS filesystem system)
 include_directories(${Boost_INCLUDE_DIRS})
 link_directories(${Boost_LIBRARY_DIRS})
 
@@ -34,7 +38,7 @@ if(NOT CMAKE_BUILD_TYPE)
 endif()
 
 if(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
-    add_definitions("-O2 -msse2 -msse3 -std=c++11")
+    add_compile_options(-O2 -msse2 -msse3)
 endif()
 
 include_directories(

@@ -6,6 +6,19 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 set(CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR}/cmake)
 
+# Option: prefer static libraries so the binary can run without installed dependencies
+option(STATIC_LINK "Prefer static libraries and bundle the C/C++ runtime" OFF)
+
+if(STATIC_LINK)
+  # Prefer .a archives over shared .so/.dylib when both are available
+  set(CMAKE_FIND_LIBRARY_SUFFIXES ".a" ".so" ".dylib")
+  set(Boost_USE_STATIC_LIBS ON)
+  # Bundle libgcc and libstdc++ into the binary
+  if(NOT "${CMAKE_CXX_COMPILER_ID}" STREQUAL "MSVC")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++")
+  endif()
+endif()
+
 # External dependency: boost filesystem
 if(POLICY CMP0167)
   cmake_policy(SET CMP0167 NEW)

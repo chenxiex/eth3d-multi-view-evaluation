@@ -27,16 +27,61 @@ jobs:
             libpcl-dev
 
       - name: Configure
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release .
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release -DSTATIC_LINK=ON .
 
       - name: Build
         run: cmake --build build --parallel
+
+      - name: Bundle binary with remaining shared library dependencies
+        run: |
+          mkdir -p bundle/lib
+
+          # Copy the binary
+          cp build/ETH3DMultiViewEvaluation bundle/
+
+          # Collect shared library dependencies, excluding core glibc components
+          # that must come from the target system (libc, ld-linux, libpthread, etc.)
+          # The grep patterns use [.-] to match both bare .so and versioned .so.N variants.
+          # Run ldd separately so its exit code is checked; || true only silences grep
+          # returning exit code 1 when there are no matching lines.
+          ldd build/ETH3DMultiViewEvaluation > /tmp/ldd_output.txt
+          grep " => " /tmp/ldd_output.txt \
+            | awk '{print $3}' \
+            | grep "^/" \
+            | grep -Ev "/(libc|libpthread|libdl|librt|libm|libresolv|libnss|libutil|libcrypt|libanl)[.-]" \
+            | grep -Ev "^/lib64/ld-linux" \
+            > /tmp/libs_to_bundle.txt || true
+
+          if [ -s /tmp/libs_to_bundle.txt ]; then
+            xargs -a /tmp/libs_to_bundle.txt -I{} cp -v {} bundle/lib/
+          else
+            echo "No extra shared libraries to bundle."
+          fi
+
+          # Ensure lib/ always has content so the tar command in the release job
+          # does not fail when no shared libraries were bundled.
+          touch bundle/lib/.keep
+
+          # Write a launcher script that resolves the bundled libraries
+          cat > bundle/ETH3DMultiViewEvaluation.sh << 'EOF'
+          #!/usr/bin/env bash
+          SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+          exec env LD_LIBRARY_PATH="$SCRIPT_DIR/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+               "$SCRIPT_DIR/ETH3DMultiViewEvaluation" "$@"
+          EOF
+          chmod +x bundle/ETH3DMultiViewEvaluation.sh
+
+          # Show what ended up in the bundle for CI transparency
+          echo "=== Bundle contents ==="
+          ls -lh bundle/ bundle/lib/
+          echo "=== Remaining dynamic dependencies of bundled binary ==="
+          ldd bundle/ETH3DMultiViewEvaluation || true
 
       - name: Upload binary artifact
         uses: actions/upload-artifact@v4
         with:
           name: ETH3DMultiViewEvaluation-linux-x86_64
-          path: build/ETH3DMultiViewEvaluation
+          path: bundle/
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
@@ -50,8 +95,17 @@ jobs:
         uses: actions/download-artifact@v4.1.3
         with:
           name: ETH3DMultiViewEvaluation-linux-x86_64
+          path: bundle
+
+      - name: Create release archive
+        run: |
+          tar -czf ETH3DMultiViewEvaluation-linux-x86_64.tar.gz \
+            -C bundle \
+            ETH3DMultiViewEvaluation \
+            ETH3DMultiViewEvaluation.sh \
+            lib/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: ETH3DMultiViewEvaluation
+          files: ETH3DMultiViewEvaluation-linux-x86_64.tar.gz

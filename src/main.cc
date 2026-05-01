@@ -26,6 +26,8 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
+#include <fstream>
+
 #include <Eigen/Core>
 #include <boost/filesystem.hpp>
 #include <pcl/console/parse.h>
@@ -74,6 +76,9 @@ int main(int argc, char** argv) {
   std::string accuracy_cloud_output_path;
   pcl::console::parse_argument(argc, argv, "--accuracy_cloud_output_path",
                                accuracy_cloud_output_path);
+  std::string scores_output_path;
+  pcl::console::parse_argument(argc, argv, "--scores_output_path",
+                               scores_output_path);
 
   // Validate arguments.
   std::stringstream errors;
@@ -98,7 +103,8 @@ int main(int argc, char** argv) {
     std::cerr << "Usage example: " << argv[0]
               << " --tolerances 0.1,0.2 --reconstruction_ply_path "
                  "path/to/reconstruction.ply --ground_truth_mlp_path "
-                 "path/to/ground-truth.mlp"
+                 "path/to/ground-truth.mlp [--scores_output_path "
+                 "path/to/scores.txt]"
               << std::endl << std::endl;
     std::cerr << errors.str() << std::endl;
     return static_cast<int>(ReturnCodes::kSystemFailure);
@@ -236,19 +242,75 @@ int main(int argc, char** argv) {
   // Balanced F-score putting the same weight on accuracy and completeness, see:
   // https://en.wikipedia.org/wiki/F1_score
   std::cout << "F1-scores: ";
+  std::vector<float> f1_scores(tolerances.size());
   for (size_t tolerance_index = 0; tolerance_index < tolerances.size();
        ++tolerance_index) {
     float precision = accuracy_results[tolerance_index];
     float recall = completeness_results[tolerance_index];
-    float f1_score = (precision <= 0 && recall <= 0)
+    f1_scores[tolerance_index] = (precision <= 0 && recall <= 0)
                          ? 0
                          : (2 * (precision * recall) / (precision + recall));
-    std::cout << f1_score;
+    std::cout << f1_scores[tolerance_index];
     if (tolerance_index < tolerances.size() - 1) {
       std::cout << " ";
     }
   }
   std::cout << std::endl;
+
+  // Write scores to file, if requested.
+  if (!scores_output_path.empty()) {
+    boost::filesystem::path scores_parent =
+        boost::filesystem::path(scores_output_path).parent_path();
+    if (!scores_parent.empty()) {
+      boost::filesystem::create_directories(scores_parent);
+    }
+    std::ofstream scores_file(scores_output_path);
+    if (!scores_file) {
+      std::cerr << "Cannot open scores output file: " << scores_output_path
+                << std::endl;
+      return static_cast<int>(ReturnCodes::kSystemFailure);
+    }
+
+    scores_file << "Tolerances: ";
+    for (size_t tolerance_index = 0; tolerance_index < tolerances.size();
+         ++tolerance_index) {
+      scores_file << tolerances[tolerance_index];
+      if (tolerance_index < tolerances.size() - 1) {
+        scores_file << " ";
+      }
+    }
+    scores_file << "\n";
+
+    scores_file << "Completenesses: ";
+    for (size_t tolerance_index = 0; tolerance_index < tolerances.size();
+         ++tolerance_index) {
+      scores_file << completeness_results[tolerance_index];
+      if (tolerance_index < tolerances.size() - 1) {
+        scores_file << " ";
+      }
+    }
+    scores_file << "\n";
+
+    scores_file << "Accuracies: ";
+    for (size_t tolerance_index = 0; tolerance_index < tolerances.size();
+         ++tolerance_index) {
+      scores_file << accuracy_results[tolerance_index];
+      if (tolerance_index < tolerances.size() - 1) {
+        scores_file << " ";
+      }
+    }
+    scores_file << "\n";
+
+    scores_file << "F1-scores: ";
+    for (size_t tolerance_index = 0; tolerance_index < tolerances.size();
+         ++tolerance_index) {
+      scores_file << f1_scores[tolerance_index];
+      if (tolerance_index < tolerances.size() - 1) {
+        scores_file << " ";
+      }
+    }
+    scores_file << "\n";
+  }
 
   return static_cast<int>(ReturnCodes::kSuccess);
 }

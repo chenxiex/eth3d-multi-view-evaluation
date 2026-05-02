@@ -11,6 +11,7 @@ Example:
     python3 batch_evaluate.py \\
         --input_dir /path/to/reconstructions \\
         --gt_dir /path/to/eth3d_gt \\
+        --executable /path/to/ETH3DMultiViewEvaluation \\
         --tolerances 0.01,0.02,0.05,0.1,0.2,0.5
 """
 
@@ -37,6 +38,14 @@ def parse_args():
             "Root directory of the ETH3D ground truth data. For each scene the "
             "ground truth MLP file is expected at "
             "<gt_dir>/<scene_name>/dslr_scan_eval/scan_alignment.mlp."
+        ),
+    )
+    parser.add_argument(
+        "--executable",
+        default="ETH3DMultiViewEvaluation",
+        help=(
+            "Path to the ETH3DMultiViewEvaluation executable. "
+            "Defaults to 'ETH3DMultiViewEvaluation' (looked up on PATH)."
         ),
     )
     # Collect all remaining arguments to forward to ETH3DMultiViewEvaluation.
@@ -78,7 +87,7 @@ def main():
             continue
 
         cmd = [
-            "ETH3DMultiViewEvaluation",
+            args.executable,
             f"--reconstruction_ply_path={ply_path}",
             f"--ground_truth_mlp_path={gt_mlp_path}",
         ] + extra_args

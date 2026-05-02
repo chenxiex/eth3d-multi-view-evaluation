@@ -1,12 +1,17 @@
-FROM ubuntu
+FROM ubuntu:24.04
 
-# Initialize the environment 
-RUN apt update
-RUN apt install -y libboost-all-dev
-RUN apt install libeigen3-dev
-RUN DEBIAN_FRONTEND=noninteractive apt-get -yq install libpcl-dev
-RUN apt install -y cmake git
+# Install dependencies
+RUN apt-get update && \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y \
+        cmake \
+        libboost-filesystem-dev \
+        libboost-system-dev \
+        libeigen3-dev \
+        libpcl-dev && \
+    rm -rf /var/lib/apt/lists/*
 
 # Build the ETH3D binaries
-RUN git clone https://github.com/ETH3D/multi-view-evaluation.git
-RUN cd multi-view-evaluation; mkdir build; cd build; cmake ../. ; make;
+WORKDIR /app
+COPY . .
+RUN cmake -B build -DCMAKE_BUILD_TYPE=Release . && \
+    cmake --build build --parallel

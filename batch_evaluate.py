@@ -88,8 +88,10 @@ def main():
 
         cmd = [
             args.executable,
-            f"--reconstruction_ply_path {ply_path}",
-            f"--ground_truth_mlp_path {gt_mlp_path}",
+            "--reconstruction_ply_path",
+            f"{ply_path}",
+            "--ground_truth_mlp_path",
+            f"{gt_mlp_path}",
         ] + extra_args
 
         print(f"[RUN] {scene_name}")

@@ -25,5 +25,31 @@ Description of optional program arguments:
 * `--voxel_size` (default 0.01): Size of voxels for normalising scores per volume.
 * `--beam_start_radius_meters` (default 0.5 * 0.00225): Size of beam at the laser scanner origin for free-space modeling.
 * `--beam_divergence_halfangle_deg` (default 0.011): Beam divergence for free-space modeling.
+* `--scores_output_path` (default ""): If set to a path, writes the evaluation scores to a text file at this path.
 * `--completeness_cloud_output_path` (default ""): If set to a path, completeness visualizations for each tolerance value are written to `<path>.tolerance_<tolerance>.ply`.
 * `--accuracy_cloud_output_path` (default ""): If set to a path, accuracy visualizations for each tolerance value are written to `<path>.tolerance_<tolerance>.ply`.
+
+## Batch Evaluation Script
+
+This repository also includes `batch_evaluate.py`, which evaluates every
+`<scene_name>.ply` file in a directory against ground truth at:
+
+`<gt_dir>/<scene_name>/dslr_scan_eval/scan_alignment.mlp`
+
+Example usage:
+
+```
+python3 batch_evaluate.py \
+    --input_dir /path/to/reconstructions \
+    --gt_dir /path/to/eth3d_gt \
+    --executable /path/to/ETH3DMultiViewEvaluation \
+    --results_dir /path/to/results \
+    --tolerances 0.01,0.02,0.05,0.1,0.2,0.5
+```
+
+Notes:
+
+* `--results_dir` is optional. If provided, the script passes
+  `--scores_output_path <results_dir>/<scene_name>.txt` for each scene.
+* Any additional arguments (for example `--tolerances`) are forwarded to
+  `ETH3DMultiViewEvaluation` verbatim.

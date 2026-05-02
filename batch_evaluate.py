@@ -12,6 +12,7 @@ Example:
         --input_dir /path/to/reconstructions \\
         --gt_dir /path/to/eth3d_gt \\
         --executable /path/to/ETH3DMultiViewEvaluation \\
+        --results_dir /path/to/results \\
         --tolerances 0.01,0.02,0.05,0.1,0.2,0.5
 """
 
@@ -48,6 +49,14 @@ def parse_args():
             "Defaults to 'ETH3DMultiViewEvaluation' (looked up on PATH)."
         ),
     )
+    parser.add_argument(
+        "--results_dir",
+        default=None,
+        help=(
+            "Optional directory for per-scene score output files. "
+            "When set, each scene writes scores to <results_dir>/<scene_name>.txt."
+        ),
+    )
     # Collect all remaining arguments to forward to ETH3DMultiViewEvaluation.
     args, extra = parser.parse_known_args()
     return args, extra
@@ -64,6 +73,9 @@ def find_ply_files(input_dir):
 
 def main():
     args, extra_args = parse_args()
+
+    if args.results_dir is not None:
+        os.makedirs(args.results_dir, exist_ok=True)
 
     ply_files = find_ply_files(args.input_dir)
     if not ply_files:
@@ -92,7 +104,11 @@ def main():
             f"{ply_path}",
             "--ground_truth_mlp_path",
             f"{gt_mlp_path}",
-        ] + extra_args
+        ]
+        if args.results_dir is not None:
+            scores_output_path = os.path.join(args.results_dir, f"{scene_name}.txt")
+            cmd += ["--scores_output_path", scores_output_path]
+        cmd += extra_args
 
         print(f"[RUN] {scene_name}")
         print("  " + " ".join(cmd))

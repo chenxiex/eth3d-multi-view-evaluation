@@ -1,4 +1,4 @@
-FROM ubuntu:24.04
+FROM debian:trixie
 
 # Install dependencies
 RUN apt-get update && \
